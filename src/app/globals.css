@@ -1,33 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  font-family: 'Sarabun', sans-serif;
+  background: #FAFAFA;
+  color: #1a1a1a;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Prompt', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #FB923C;
+  border-radius: 10px;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #F97316 !important;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
+}
+
+.dialog-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+.dialog-content {
+  animation: slideUp 0.3s ease-out;
+}
+.qr-appear {
+  animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+.pattern-bg {
+  background-color: #FFF7ED;
+  background-image:
+    radial-gradient(circle at 25px 25px, rgba(249,115,22,0.08) 2px, transparent 0),
+    radial-gradient(circle at 75px 75px, rgba(249,115,22,0.05) 2px, transparent 0);
+  background-size: 100px 100px;
 }
