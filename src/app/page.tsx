@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { signOut, useSession } from "next-auth/react";
 import UserRegistrationDialog from "@/components/UserRegistrationDialog";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
@@ -95,10 +96,7 @@ export default function Home() {
         style={{ boxShadow: "0 2px 15px -3px rgba(0,0,0,0.07)" }}>
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: "linear-gradient(135deg, #F97316, #EA580C)" }}>
-              QR
-            </div>
+            <Image src="/logo.png" alt="RMU QR Code" width={44} height={44} priority className="w-11 h-11 object-contain" />
             <div>
               <h1 className="font-bold text-gray-900 text-base leading-tight">ระบบสร้าง QR Code</h1>
               <p className="text-xs text-gray-500">มหาวิทยาลัยราชภัฏมหาสารคาม</p>
@@ -126,10 +124,7 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-4 py-8">
         {!user ? (
           <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center text-white text-2xl font-bold"
-              style={{ background: "linear-gradient(135deg, #F97316, #EA580C)", boxShadow: "0 4px 20px rgba(249,115,22,0.4)" }}>
-              QR
-            </div>
+            <Image src="/logo.png" alt="RMU QR Code" width={160} height={160} priority className="w-40 h-40 mx-auto mb-6 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-3">สร้าง QR Code ฟรี ไม่หมดอายุ</h2>
             <p className="text-gray-500">บริการสร้าง QR Code สำหรับบุคลากรและบุคคลทั่วไป<br />มหาวิทยาลัยราชภัฏมหาสารคาม</p>
           </div>
@@ -205,6 +200,7 @@ export default function Home() {
 
       <footer className="mt-12 py-6 border-t border-orange-100 bg-white">
         <div className="max-w-5xl mx-auto px-4 text-center">
+          <Image src="/logo.png" alt="" width={40} height={40} className="w-10 h-10 mx-auto mb-2 object-contain opacity-80" />
           <p className="text-sm text-gray-400">ระบบสร้าง QR Code · มหาวิทยาลัยราชภัฏมหาสารคาม (มรม.)</p>
           <p className="text-xs text-gray-300 mt-1">Rajabhat Maha Sarakham University</p>
         </div>

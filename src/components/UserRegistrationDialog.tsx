@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { signIn, signOut } from "next-auth/react";
 import { MRM_DEPARTMENTS } from "@/lib/departments";
 
@@ -123,7 +124,9 @@ export default function UserRegistrationDialog({ step, sessionEmail, sessionName
         <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)" }}>
           <div className="relative p-8 text-white">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center font-bold">QR</div>
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center p-1 flex-shrink-0">
+                <Image src="/logo.png" alt="RMU QR Code" width={52} height={52} priority className="w-full h-full object-contain" />
+              </div>
               <div>
                 <p className="text-white/80 text-sm">มหาวิทยาลัยราชภัฏมหาสารคาม</p>
                 <h2 className="text-xl font-semibold">ระบบสร้าง QR Code</h2>

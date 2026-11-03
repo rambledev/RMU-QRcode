@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionEmail } from "@/lib/auth";
-import QRCode from "qrcode";
+import { generateQRDataUrl } from "@/lib/qr";
 
 const UNAUTHORIZED_MESSAGE = "กรุณาเข้าสู่ระบบด้วยอีเมล @rmu.ac.th";
 
@@ -23,10 +23,11 @@ export async function POST(req: NextRequest) {
     }
 
     body = await req.json();
-    const { content, contentType, label } = body as {
+    const { content, contentType, label, withLogo = true } = body as {
       content?: string;
       contentType?: string;
       label?: string;
+      withLogo?: boolean;
     };
 
     if (!content || !contentType) {
@@ -43,15 +44,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const qrDataUrl = await QRCode.toDataURL(content, {
-      width: 400,
-      margin: 2,
-      color: {
-        dark: "#1a1a1a",
-        light: "#ffffff",
-      },
-      errorCorrectionLevel: "H",
-    });
+    const qrDataUrl = await generateQRDataUrl(content, withLogo !== false);
 
     const qrCode = await prisma.qRCode.create({
       data: {
@@ -69,13 +62,13 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         email: user.email,
         action: "generate_qr",
-        metadata: { contentType, label, qrCodeId: qrCode.id },
+        metadata: { contentType, label, withLogo: withLogo !== false, qrCodeId: qrCode.id },
         ipAddress: req.headers.get("x-forwarded-for") || "unknown",
         userAgent: req.headers.get("user-agent") || undefined,
       },
     });
 
-    console.log("[QRCodesAPI][POST] END", { userId: user.id, qrCodeId: qrCode.id });
+    console.log("[QRCodesAPI][POST] END", { userId: user.id, qrCodeId: qrCode.id, withLogo: withLogo !== false });
     return NextResponse.json({ qrCode });
   } catch (error) {
     console.error("[QRCodesAPI][POST] ERROR", { error, body });

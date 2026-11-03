@@ -19,6 +19,7 @@ export default function QRCodeGenerator({ userId, onGenerated }: Props) {
   const [contentType, setContentType] = useState<"url" | "text">("url");
   const [content, setContent] = useState("");
   const [label, setLabel] = useState("");
+  const [withLogo, setWithLogo] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generatedQR, setGeneratedQR] = useState<QRCode | null>(null);
@@ -33,18 +34,32 @@ export default function QRCodeGenerator({ userId, onGenerated }: Props) {
       setError("รูปแบบ URL ไม่ถูกต้อง เช่น https://www.example.com"); return;
     }
     setLoading(true); setError("");
+    const url = "/api/qrcodes";
+    console.log("[QRCodeGenerator][handleGenerate] START", { contentType, label, withLogo });
     try {
-      const res = await fetch("/api/qrcodes", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, content, contentType, label }),
+        body: JSON.stringify({ content, contentType, label, withLogo }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "เกิดข้อผิดพลาด"); return; }
+      if (process.env.NODE_ENV === "development") {
+        console.group("[DEV] API Response");
+        console.log("URL:", url);
+        console.log("Response:", { ...data, qrCode: data.qrCode && { ...data.qrCode, qrDataUrl: `(${data.qrCode.qrDataUrl?.length} chars)` } });
+        console.groupEnd();
+      }
+      if (!res.ok) {
+        console.error("[QRCodeGenerator][handleGenerate] ERROR", { status: res.status, data });
+        setError(data.error || "กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+      console.log("[QRCodeGenerator][handleGenerate] END", { qrCodeId: data.qrCode?.id });
       setGeneratedQR(data.qrCode);
       onGenerated(data.qrCode);
-    } catch {
-      setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } catch (err) {
+      console.error("[QRCodeGenerator][handleGenerate] ERROR", { err, contentType });
+      setError("กรุณาลองใหม่อีกครั้ง");
     } finally {
       setLoading(false);
     }
@@ -123,6 +138,19 @@ export default function QRCodeGenerator({ userId, onGenerated }: Props) {
             placeholder="เช่น เว็บไซต์คณะ, ลิงก์ลงทะเบียน..."
             className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm transition-all" />
         </div>
+        <label className={`flex items-center gap-3 p-3 rounded-2xl border-2 cursor-pointer transition-all ${
+          withLogo ? "border-orange-400 bg-orange-50" : "border-gray-200 bg-white hover:border-orange-200"
+        }`}>
+          <input type="checkbox" checked={withLogo}
+            onChange={(e) => { setWithLogo(e.target.checked); setGeneratedQR(null); }}
+            className="w-4 h-4 accent-orange-500" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" className="w-9 h-9 object-contain" />
+          <div>
+            <div className="font-semibold text-gray-800 text-sm">ใส่โลโก้มหาวิทยาลัยกลาง QR Code</div>
+            <div className="text-xs text-gray-500">ยังสแกนได้ตามปกติ</div>
+          </div>
+        </label>
       </div>
 
       {error && (
