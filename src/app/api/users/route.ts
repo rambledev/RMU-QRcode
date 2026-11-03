@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       department?: string | null;
       faculty?: string | null;
     };
-    // Only @rmu.ac.th accounts can sign in, so every user is internal staff
+    // Only @rmu.ac.th accounts can sign in, so every user is internal (staff or student)
     const userType = "internal";
 
     if (!name?.trim() || !phone?.trim() || !department || !faculty) {

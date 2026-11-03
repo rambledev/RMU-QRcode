@@ -126,7 +126,7 @@ export default function Home() {
           <div className="text-center py-20">
             <Image src="/logo.png" alt="RMU QR Code" width={160} height={160} priority className="w-40 h-40 mx-auto mb-6 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-3">สร้าง QR Code ฟรี ไม่หมดอายุ</h2>
-            <p className="text-gray-500">บริการสร้าง QR Code สำหรับบุคลากรและบุคคลทั่วไป<br />มหาวิทยาลัยราชภัฏมหาสารคาม</p>
+            <p className="text-gray-500">บริการสร้าง QR Code สำหรับบุคลากรและนักศึกษา<br />มหาวิทยาลัยราชภัฏมหาสารคาม</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -152,7 +152,7 @@ export default function Home() {
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       user.userType === "internal" ? "bg-orange-50 text-orange-700" : "bg-gray-100 text-gray-600"
                     }`}>
-                      {user.userType === "internal" ? "บุคลากร มรม." : "บุคคลภายนอก"}
+                      {user.userType === "internal" ? "บุคลากร / นักศึกษา มรม." : "ผู้ใช้งาน"}
                     </span>
                   </div>
                   {user.department && (

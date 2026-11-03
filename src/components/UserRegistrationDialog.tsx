@@ -83,7 +83,7 @@ export default function UserRegistrationDialog({ step, sessionEmail, sessionName
       return;
     }
     if (!selectedCategory || !selectedDept) {
-      setError("กรุณาเลือกหน่วยงาน");
+      setError("กรุณาเลือกคณะ / หน่วยงาน");
       return;
     }
     setLoading(true);
@@ -134,7 +134,7 @@ export default function UserRegistrationDialog({ step, sessionEmail, sessionName
             </div>
             <p className="text-white/75 text-sm mt-3">
               {step === "login"
-                ? "เข้าสู่ระบบด้วยบัญชี Google ของมหาวิทยาลัย (@rmu.ac.th)"
+                ? "สำหรับบุคลากรและนักศึกษา มรม. เข้าสู่ระบบด้วยบัญชี Google @rmu.ac.th"
                 : "กรอกข้อมูลเพิ่มเติมสำหรับการใช้งานครั้งแรก"}
             </p>
           </div>
@@ -181,10 +181,10 @@ export default function UserRegistrationDialog({ step, sessionEmail, sessionName
                   className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm transition-all" />
               </div>
               <div className="space-y-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                <p className="text-xs font-medium text-orange-700">เลือกหน่วยงาน <span className="text-orange-500">*</span></p>
+                <p className="text-xs font-medium text-orange-700">เลือกคณะ / หน่วยงานที่สังกัด <span className="text-orange-500">*</span></p>
                 <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSelectedDept(""); }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-white">
-                  <option value="">-- เลือกกลุ่มหน่วยงาน --</option>
+                  <option value="">-- เลือกกลุ่ม --</option>
                   {MRM_DEPARTMENTS.map((cat) => (
                     <option key={cat.category} value={cat.category}>{cat.category}</option>
                   ))}
@@ -192,7 +192,7 @@ export default function UserRegistrationDialog({ step, sessionEmail, sessionName
                 {selectedCategory && (
                   <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-white">
-                    <option value="">-- เลือกหน่วยงาน --</option>
+                    <option value="">-- เลือกคณะ / หน่วยงาน --</option>
                     {availableDepts.map((dept) => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}

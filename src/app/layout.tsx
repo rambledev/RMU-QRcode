@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "RMU - QR code",
-  description: "ระบบสร้าง QR Code มหาวิทยาลัยราชภัฏมหาสารคาม",
+  description: "ระบบสร้าง QR Code สำหรับบุคลากรและนักศึกษา มหาวิทยาลัยราชภัฏมหาสารคาม",
 };
 
 export default function RootLayout({
