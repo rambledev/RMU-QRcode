@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionEmail } from "@/lib/auth";
 
-export async function GET(req: NextRequest) {
-  const email = req.nextUrl.searchParams.get("email");
+const UNAUTHORIZED_MESSAGE = "กรุณาเข้าสู่ระบบด้วยอีเมล @rmu.ac.th";
+
+// Returns the profile of the signed-in user (null if not registered yet)
+export async function GET() {
+  const email = await getSessionEmail();
+  console.log("[UsersAPI][GET] START", { email });
   if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    return NextResponse.json({ error: UNAUTHORIZED_MESSAGE }, { status: 401 });
   }
 
   try {
@@ -18,59 +23,68 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    console.log("[UsersAPI][GET] END", { email, found: !!user, qrCount: user?.qrCodes.length ?? 0 });
     return NextResponse.json({ user: user || null });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("[UsersAPI][GET] ERROR", { error, email });
+    return NextResponse.json({ error: "ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง" }, { status: 500 });
   }
 }
 
+// Creates or updates the profile of the signed-in user
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { email, name, phone, userType, department, faculty } = body;
+  const email = await getSessionEmail();
+  console.log("[UsersAPI][POST] START", { email });
+  if (!email) {
+    return NextResponse.json({ error: UNAUTHORIZED_MESSAGE }, { status: 401 });
+  }
 
-    if (!email || !name || !phone || !userType) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+    const { name, phone, department, faculty } = body as {
+      name?: string;
+      phone?: string;
+      department?: string | null;
+      faculty?: string | null;
+    };
+    // Only @rmu.ac.th accounts can sign in, so every user is internal staff
+    const userType = "internal";
+
+    if (!name?.trim() || !phone?.trim() || !department || !faculty) {
+      console.log("[UsersAPI][POST] END missing fields", { email, body });
+      return NextResponse.json({ error: "กรุณากรอกข้อมูลให้ครบถ้วน" }, { status: 400 });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
+    const data = { name: name.trim(), phone: phone.trim(), userType, department, faculty };
 
-    let user;
-    if (existingUser) {
-      user = await prisma.user.update({
-        where: { email },
-        data: { name, phone, userType, department, faculty },
-        include: {
-          qrCodes: { orderBy: { createdAt: "desc" }, take: 20 },
-        },
-      });
-    } else {
-      user = await prisma.user.create({
-        data: { email, name, phone, userType, department, faculty },
-        include: {
-          qrCodes: { orderBy: { createdAt: "desc" }, take: 20 },
-        },
-      });
-    }
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: data,
+      create: { email, ...data },
+      include: {
+        qrCodes: { orderBy: { createdAt: "desc" }, take: 20 },
+      },
+    });
 
-    const ipAddress =
-      req.headers.get("x-forwarded-for") || "unknown";
+    const ipAddress = req.headers.get("x-forwarded-for") || "unknown";
 
     await prisma.usageLog.create({
       data: {
         userId: user.id,
         email,
-        action: existingUser ? "login" : "register",
+        action: existingUser ? "update_profile" : "register",
         metadata: { userType, department, faculty },
         ipAddress,
         userAgent: req.headers.get("user-agent") || undefined,
       },
     });
 
+    console.log("[UsersAPI][POST] END", { email, userId: user.id, isNew: !existingUser });
     return NextResponse.json({ user, isNew: !existingUser });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("[UsersAPI][POST] ERROR", { error, email, body });
+    return NextResponse.json({ error: "ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง" }, { status: 500 });
   }
 }
