@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { signIn, signOut } from "next-auth/react";
 import { MRM_DEPARTMENTS } from "@/lib/departments";
 
 type User = {
@@ -22,78 +23,94 @@ type QRCode = {
 };
 
 type Props = {
+  // "login": not signed in yet, "info": signed in with Google but no profile in DB
+  step: "login" | "info";
+  sessionEmail?: string | null;
+  sessionName?: string | null;
   onSuccess: (user: User, qrCodes: QRCode[]) => void;
 };
 
-export default function UserRegistrationDialog({ onSuccess }: Props) {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+// Maps NextAuth error codes (from ?error=) to friendly messages
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  DomainNotAllowed: "ระบบนี้อนุญาตเฉพาะอีเมล @rmu.ac.th เท่านั้น กรุณาเลือกบัญชีของมหาวิทยาลัย",
+  AccessDenied: "ระบบนี้อนุญาตเฉพาะอีเมล @rmu.ac.th เท่านั้น กรุณาเลือกบัญชีของมหาวิทยาลัย",
+};
+const DEFAULT_AUTH_ERROR = "ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง";
+
+export default function UserRegistrationDialog({ step, sessionEmail, sessionName, onSuccess }: Props) {
+  const [name, setName] = useState(sessionName ?? "");
   const [phone, setPhone] = useState("");
-  const [userType, setUserType] = useState("external");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [step, setStep] = useState<"email" | "info">("email");
-  const [existingUser, setExistingUser] = useState<User | null>(null);
 
   const availableDepts =
     MRM_DEPARTMENTS.find((d) => d.category === selectedCategory)?.departments || [];
 
-  const handleEmailCheck = async () => {
-    if (!email) return;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("รูปแบบ email ไม่ถูกต้อง");
-      return;
-    }
+  // Show the error NextAuth redirected back with, then clean the URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("error");
+    if (!code) return;
+    console.log("[UserRegistrationDialog][authError]", { code });
+    setError(AUTH_ERROR_MESSAGES[code] ?? DEFAULT_AUTH_ERROR);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+
+  useEffect(() => {
+    if (sessionName && !name) setName(sessionName);
+  }, [sessionName, name]);
+
+  const handleGoogleSignIn = async () => {
+    console.log("[UserRegistrationDialog][handleGoogleSignIn] START");
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/users?email=${encodeURIComponent(email)}`);
-      const data = await res.json();
-      if (data.user) {
-        setExistingUser(data.user);
-        setName(data.user.name);
-        setPhone(data.user.phone);
-        setUserType(data.user.userType);
-        if (data.user.faculty) setSelectedCategory(data.user.faculty);
-        if (data.user.department) setSelectedDept(data.user.department);
-      }
-      setStep("info");
-    } catch {
-      setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
-    } finally {
+      await signIn("google", { callbackUrl: "/" });
+    } catch (err) {
+      console.error("[UserRegistrationDialog][handleGoogleSignIn] ERROR", { err });
+      setError(DEFAULT_AUTH_ERROR);
       setLoading(false);
     }
   };
 
   const handleSubmit = async () => {
+    console.log("[UserRegistrationDialog][handleSubmit] START", { name, phone, selectedCategory, selectedDept });
     if (!name.trim() || !phone.trim()) {
       setError("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-    if (userType === "internal" && (!selectedCategory || !selectedDept)) {
+    if (!selectedCategory || !selectedDept) {
       setError("กรุณาเลือกหน่วยงาน");
       return;
     }
     setLoading(true);
     setError("");
+    const url = "/api/users";
     try {
-      const res = await fetch("/api/users", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email, name, phone, userType,
-          department: userType === "internal" ? selectedDept : null,
-          faculty: userType === "internal" ? selectedCategory : null,
-        }),
+        body: JSON.stringify({ name, phone, department: selectedDept, faculty: selectedCategory }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "เกิดข้อผิดพลาด"); return; }
+      if (process.env.NODE_ENV === "development") {
+        console.group("[DEV] API Response");
+        console.log("URL:", url);
+        console.log("Response:", data);
+        console.groupEnd();
+      }
+      if (!res.ok) {
+        console.error("[UserRegistrationDialog][handleSubmit] ERROR", { status: res.status, data });
+        setError(data.error || "กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+      console.log("[UserRegistrationDialog][handleSubmit] END", { userId: data.user?.id });
       onSuccess(data.user, data.user.qrCodes || []);
-    } catch {
-      setError("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } catch (err) {
+      console.error("[UserRegistrationDialog][handleSubmit] ERROR", { err });
+      setError("กรุณาลองใหม่อีกครั้ง");
     } finally {
       setLoading(false);
     }
@@ -113,7 +130,9 @@ export default function UserRegistrationDialog({ onSuccess }: Props) {
               </div>
             </div>
             <p className="text-white/75 text-sm mt-3">
-              {step === "email" ? "กรุณากรอก Email เพื่อเข้าใช้งานระบบ" : "กรอกข้อมูลเพื่อใช้งานระบบ"}
+              {step === "login"
+                ? "เข้าสู่ระบบด้วยบัญชี Google ของมหาวิทยาลัย (@rmu.ac.th)"
+                : "กรอกข้อมูลเพิ่มเติมสำหรับการใช้งานครั้งแรก"}
             </p>
           </div>
         </div>
@@ -125,33 +144,27 @@ export default function UserRegistrationDialog({ onSuccess }: Props) {
             </div>
           )}
 
-          {step === "email" ? (
-            <div className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  อีเมล <span className="text-orange-500">*</span>
-                </label>
-                <input
-                  type="email" value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleEmailCheck()}
-                  placeholder="example@email.com"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm transition-all"
-                />
-              </div>
-              <button onClick={handleEmailCheck} disabled={loading || !email}
-                className="w-full py-3 text-white font-semibold rounded-2xl text-sm disabled:opacity-60"
-                style={{ background: !email ? "#ccc" : "linear-gradient(135deg, #F97316, #EA580C)" }}>
-                {loading ? "กำลังตรวจสอบ..." : "ถัดไป →"}
+          {step === "login" ? (
+            <div className="space-y-4">
+              <button onClick={handleGoogleSignIn} disabled={loading}
+                className="w-full py-3 flex items-center justify-center gap-3 border border-gray-200 bg-white text-gray-700 font-semibold rounded-2xl text-sm hover:bg-gray-50 disabled:opacity-60">
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+                  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+                  <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+                </svg>
+                {loading ? "กำลังเชื่อมต่อ..." : "เข้าสู่ระบบด้วย Google"}
               </button>
+              <p className="text-xs text-center text-gray-400">อนุญาตเฉพาะอีเมล @rmu.ac.th เท่านั้น</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {existingUser && (
-                <div className="p-3 bg-orange-50 border border-orange-200 rounded-2xl text-sm text-orange-800">
-                  พบข้อมูลของคุณในระบบแล้ว กรุณายืนยันข้อมูล
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+                <input type="email" value={sessionEmail ?? ""} disabled
+                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-gray-50 text-gray-500" />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">ชื่อ-นามสกุล <span className="text-orange-500">*</span></label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)}
@@ -164,39 +177,29 @@ export default function UserRegistrationDialog({ onSuccess }: Props) {
                   placeholder="0XX-XXX-XXXX"
                   className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm transition-all" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ประเภทผู้ใช้งาน <span className="text-orange-500">*</span></label>
-                <select value={userType} onChange={(e) => { setUserType(e.target.value); setSelectedCategory(""); setSelectedDept(""); }}
+              <div className="space-y-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                <p className="text-xs font-medium text-orange-700">เลือกหน่วยงาน <span className="text-orange-500">*</span></p>
+                <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSelectedDept(""); }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-white">
-                  <option value="external">บุคคลภายนอก</option>
-                  <option value="internal">บุคลากร มรม.</option>
+                  <option value="">-- เลือกกลุ่มหน่วยงาน --</option>
+                  {MRM_DEPARTMENTS.map((cat) => (
+                    <option key={cat.category} value={cat.category}>{cat.category}</option>
+                  ))}
                 </select>
-              </div>
-              {userType === "internal" && (
-                <div className="space-y-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                  <p className="text-xs font-medium text-orange-700">เลือกหน่วยงาน</p>
-                  <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSelectedDept(""); }}
+                {selectedCategory && (
+                  <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-white">
-                    <option value="">-- เลือกกลุ่มหน่วยงาน --</option>
-                    {MRM_DEPARTMENTS.map((cat) => (
-                      <option key={cat.category} value={cat.category}>{cat.category}</option>
+                    <option value="">-- เลือกหน่วยงาน --</option>
+                    {availableDepts.map((dept) => (
+                      <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
-                  {selectedCategory && (
-                    <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-2xl text-sm bg-white">
-                      <option value="">-- เลือกหน่วยงาน --</option>
-                      {availableDepts.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => { setStep("email"); setError(""); }}
+                <button onClick={() => signOut({ callbackUrl: "/" })}
                   className="flex-1 py-3 border border-gray-200 text-gray-600 font-medium rounded-2xl text-sm hover:bg-gray-50">
-                  ← ย้อนกลับ
+                  เปลี่ยนบัญชี
                 </button>
                 <button onClick={handleSubmit} disabled={loading}
                   className="py-3 px-6 text-white font-semibold rounded-2xl text-sm disabled:opacity-60"

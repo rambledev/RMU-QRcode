@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { signOut, useSession } from "next-auth/react";
 import UserRegistrationDialog from "@/components/UserRegistrationDialog";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 import QRCodeHistory from "@/components/QRCodeHistory";
@@ -24,8 +25,39 @@ type QRCode = {
 };
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [qrCodes, setQrCodes] = useState<QRCode[]>([]);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // After Google sign-in, load the profile of the signed-in account
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    const loadProfile = async () => {
+      const url = "/api/users";
+      console.log("[Home][loadProfile] START", { email: session?.user?.email });
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (process.env.NODE_ENV === "development") {
+          console.group("[DEV] API Response");
+          console.log("URL:", url);
+          console.log("Response:", data);
+          console.groupEnd();
+        }
+        if (res.ok && data.user) {
+          setUser(data.user);
+          setQrCodes(data.user.qrCodes || []);
+        }
+        console.log("[Home][loadProfile] END", { found: !!data.user });
+      } catch (error) {
+        console.error("[Home][loadProfile] ERROR", { error, email: session?.user?.email });
+      } finally {
+        setProfileLoaded(true);
+      }
+    };
+    loadProfile();
+  }, [status, session?.user?.email]);
 
   const handleUserRegistered = (registeredUser: User, existingQrCodes: QRCode[]) => {
     setUser(registeredUser);
@@ -37,13 +69,27 @@ export default function Home() {
   };
 
   const handleLogout = () => {
+    console.log("[Home][handleLogout]", { email: user?.email });
     setUser(null);
     setQrCodes([]);
+    signOut({ callbackUrl: "/" });
   };
+
+  const dialogStep: "login" | "info" | null =
+    status === "unauthenticated" ? "login"
+    : status === "authenticated" && profileLoaded && !user ? "info"
+    : null;
 
   return (
     <div className="min-h-screen pattern-bg">
-      {!user && <UserRegistrationDialog onSuccess={handleUserRegistered} />}
+      {dialogStep && (
+        <UserRegistrationDialog
+          step={dialogStep}
+          sessionEmail={session?.user?.email}
+          sessionName={session?.user?.name}
+          onSuccess={handleUserRegistered}
+        />
+      )}
 
       <header className="bg-white sticky top-0 z-40 border-b border-orange-100"
         style={{ boxShadow: "0 2px 15px -3px rgba(0,0,0,0.07)" }}>
@@ -133,7 +179,7 @@ export default function Home() {
                   <li className="flex items-start gap-2"><span className="text-orange-400">•</span>QR Code ที่สร้างไม่มีวันหมดอายุ</li>
                   <li className="flex items-start gap-2"><span className="text-orange-400">•</span>รองรับ URL, ข้อความ, ที่อยู่, เบอร์โทร</li>
                   <li className="flex items-start gap-2"><span className="text-orange-400">•</span>ดาวน์โหลดเป็น PNG ความละเอียดสูง</li>
-                  <li className="flex items-start gap-2"><span className="text-orange-400">•</span>Login ด้วย email เดิมเพื่อดูประวัติ QR Code</li>
+                  <li className="flex items-start gap-2"><span className="text-orange-400">•</span>Login ด้วยบัญชี @rmu.ac.th เดิมเพื่อดูประวัติ QR Code</li>
                 </ul>
               </div>
             </div>
